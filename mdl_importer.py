@@ -29,7 +29,7 @@ from bpy.props import StringProperty
 from bpy_extras.io_utils import ImportHelper
 
 #   #   #   #   #   #   #   #   #   #   #   #   #   #   #   #   #   #   #   #   #   #
-#   This script is for Stories .MDLs, the file format for pedestrians & props       #
+#   This script is for Stories .MDLs, the file format for actors & props            #
 #   #   #   #   #   #   #   #   #   #   #   #   #   #   #   #   #   #   #   #   #   #
 # - Script resources:
 # • https://gtamods.com/wiki/Relocatable_chunk (pre-process)
@@ -44,13 +44,16 @@ from bpy_extras.io_utils import ImportHelper
 # • https://web-archive-org.translate.goog/web/20180712151513/http://gtamodding.ru/wiki/MDL?_x_tr_sl=ru&_x_tr_tl=en&_x_tr_hl=en (*English*)
 # • https://web-archive-org.translate.goog/web/20180725082416/http://gtamodding.ru/wiki/MDL_importer?_x_tr_sl=ru&_x_tr_tl=en&_x_tr_hl=en (by Alex/AK73 - good resource to start w/out any other documentation)
 # - Mod resources/cool stuff:
+# • https://libertycity.net/files/gta-liberty-city-stories/48612-yet-another-img-editor.html (GTA3xx .img: .mdls, textures, animations)
 # • https://gtaforums.com/topic/838537-lcsvcs-dir-files/
-# • https://gtaforums.com/topic/285544-gtavcslcs-modding/page/11/
+# • https://gtaforums.com/topic/285544-gtavcslcs-modding/
 # • https://thegtaplace.com/forums/topic/12002-gtavcslcs-modding/
 # • http://aap.papnet.eu/gta/RE/lcs_pipes.txt (a brief binary rundown of how bitflags work for PS2/PSP/Mobile Stories games)
 # • https://libertycity.net/articles/gta-vice-city-stories/6773-how-one-of-the-best-grand-theft-auto.html
 # • https://umdatabase.net/view.php?id=CB00495D (database collection of Grand Theft Auto prototypes)
 # • https://www.ign.com/articles/2005/09/10/gta-liberty-city-stories-2 ( ...it's IGN, but old IGN at least)
+# • https://lcsteam.net/community/forum/index.php/topic,337.msg9335.html#msg9335 (RW 3.7/4.0, .MDL's, .WRLD's, .BSP's... )
+# • https://www.gamedeveloper.com/programming/opinion-why-on-earth-would-we-write-our-own-game-engine- (Renderwares fate)
 
 
 #######################################################
@@ -696,7 +699,7 @@ class ImportMDLOperator(bpy.types.Operator, ImportHelper):
                     """Reads 3 float32s from the file and returns a Vector."""
                     return Vector(struct.unpack('<3f', f.read(12))) 
                 #######################################################
-                def read_local_matrix(f, scale_factor=1.0, xScale=1.0, yScale=0.25, zScale=1.0, TranslationFactor=None):
+                def read_local_matrix(f):
                     """Reads a 3x4 matrix and logs the starting offset before reading."""
                     matrix_offset = f.tell()  
                     
@@ -712,7 +715,8 @@ class ImportMDLOperator(bpy.types.Operator, ImportHelper):
                     row4 = read_point3(f) # position
                     f.read(4)
 
-                    scaleFactor = 100 # always >100, never lower!
+                    scale_factor = 1.0
+                    # scaleFactor = 100 # always >100, never lower!
                     # multiply matrix translation row by scale factor
                     x = row4.x * scale_factor
                     y = row4.y * scale_factor
@@ -1155,9 +1159,9 @@ class ImportMDLOperator(bpy.types.Operator, ImportHelper):
 
                     current_frame_ptr = frame_ptr
                     
-                    prev_link = read_u32() # prev atomic ptr somehow?
+                    prev_link = read_u32() # prev atomic ptr
                     
-                    prev_link2 = read_u32() # prev atomic ptr again somehow?
+                    prev_link2 = read_u32() # prev atomic ptr again
                     
                     padAAAA = read_u32()       # AAAAAAAA (necessary for Leeds Engine rendering)
 
@@ -1383,7 +1387,6 @@ class ImportMDLOperator(bpy.types.Operator, ImportHelper):
                                     strips_meta = []
                                     part_vcols = []
                                     part_loop_colors = []
-
 
                                     # vert_base is always zero for each part; it would be used if vertex indices were global
                                     vert_base = 0
@@ -1896,7 +1899,8 @@ class ImportMDLOperator(bpy.types.Operator, ImportHelper):
                                             obj.parent = root_empty
                                     else:
                                         log(f"✗ No vertices found to import in part {part_index}!")
-                                        
+                            
+                            # Going off on our own here now, using librwgta as a ref...
                             # === PSP geometry struct logic ===
                         elif self.platform == 'PSP':
                             log(f" Attempting PSP Stories MDL read...")
@@ -2285,13 +2289,18 @@ class ImportMDLOperator(bpy.types.Operator, ImportHelper):
                                 # This is also the point I read that The_Hero and LCS Team updated
                                 # Alex(AK73)'s 3DSMax MDL Importer from 1.0.0 to 3.0.0 10+ years ago lol
                                 # ... yet it's nowhere to be found
+
                                 mesh_verts, mesh_faces = (mesh_verts, mesh_faces)
                                 mesh_data = bpy.data.meshes.new(f"PSP_Mesh_{mesh_index}")
-                                mesh_obj = bpy.data.objects.new(f"PSP_Mesh_{mesh_index}", mesh)
+                                mesh_obj = bpy.data.objects.new(f"PSP_Mesh_{mesh_index}", mesh_data)
                                 bpy.context.collection.objects.link(mesh_obj)
+
                                                        
                                 mesh_data.from_pydata(mesh_verts, [], mesh_faces)
                                 mesh_data.update()
+
+                                M_world = frame_mats_world.get(frame_ptr)
+                                mesh_obj.matrix_world = M_world
                                 
                                 log(f"✔ Built Blender mesh: PSP_Mesh_{mesh_index}, verts={len(mesh_verts)}, faces={len(mesh_faces)}")
                                 # TODO: handle UVs, colors, normals, weights here by creating layers and assigning them
