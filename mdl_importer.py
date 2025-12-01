@@ -16,17 +16,16 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import os
-import bpy
 import math
 import struct
 import traceback
 
-from mathutils import Matrix, Vector
-
+import bpy
 from bpy.types import Operator
 from bpy.props import EnumProperty
 from bpy.props import StringProperty
 from bpy_extras.io_utils import ImportHelper
+from mathutils import Matrix, Vector
 
 #   #   #   #   #   #   #   #   #   #   #   #   #   #   #   #   #   #   #   #   #   #
 #   This script is for Stories .MDLs, the file format for actors & props            #
@@ -57,6 +56,7 @@ from bpy_extras.io_utils import ImportHelper
 
 
 #######################################################
+# These are interesting... it seems AK73 was working on Stories animation rigging
 # === LCS Bone Arrays ===
 commonBoneOrder = (
     "Root", "Pelvis", "Spine", "Spine1", "Neck", "Head",
@@ -927,10 +927,6 @@ class ImportMDLOperator(bpy.types.Operator, ImportHelper):
                     return material
                 #######################################################
                 def _ensure_material_slots(obj, mats, *, report=print):
-                    """
-                    Ensures obj.data.materials holds exactly mats (ordered). Returns a dict:
-                    {material_id (int) : slot_index (int)} for quick polygon assignment.
-                    """
                     me = obj.data
                     me.materials.clear()
                     for m in mats:
@@ -940,7 +936,6 @@ class ImportMDLOperator(bpy.types.Operator, ImportHelper):
                     return id_to_slot
                 #######################################################
                 def _ensure_single_material(obj, mat, *, report=print):
-                    """Replace object material list with a single material"""
                     me = obj.data
                     me.materials.clear()
                     me.materials.append(mat)
@@ -1095,7 +1090,7 @@ class ImportMDLOperator(bpy.types.Operator, ImportHelper):
                 LCSATOMIC1 = 0x01050001      # renders first?
                 LCSATOMIC2 = 0x01000001      # renders last?
                 VCSATOMIC1 = 0x0004AA01      # renders first?
-                VCSATOMIC2 = 0x0004AA01      # renders last?
+                VCSATOMIC2 = 0x00AA0003      # renders last? props only?
                 VCSATOMICPSP1 = 0x01F40400   # this structure appears similar to VCSATOMIC1&2
                 VCSATOMICPSP2 = 0x01F40400   # (?)
                 # VCSPS2FRAME1  = 0x0003AA01  # the root frame for PS2 models
@@ -1718,13 +1713,13 @@ class ImportMDLOperator(bpy.types.Operator, ImportHelper):
                                                         bone4 = struct.unpack('<H', f.read(2))[0] // 4
                                                         f.read(1)
                                                         w4 = struct.unpack('<B', f.read(1))[0] / 128.0
-                                                        log(f"         B1={bone1} W1={w1:.4f} ... B4={bone4} W4={w4:.4f}")
+
 
                                                         # build the per-vertex lists
                                                         indices  = [bone1, bone2, bone3, bone4]
                                                         weights  = [w1,    w2,    w3,    w4   ]
 
-                                                        log(f"         B1={bone1} W1={w1:.4f} ... B4={bone4} W4={w4:.4f}")
+                                                        log(f"         B1={bone1} W1={w1:.4f} B2={bone2} W2={w2:.4f} B3={bone3} W3={w3:.4f} B4={bone4} W4={w4:.4f}")
 
                                                         skin_indices.append(indices)
                                                         skin_weights.append(weights)
@@ -2294,8 +2289,7 @@ class ImportMDLOperator(bpy.types.Operator, ImportHelper):
                                 mesh_data = bpy.data.meshes.new(f"PSP_Mesh_{mesh_index}")
                                 mesh_obj = bpy.data.objects.new(f"PSP_Mesh_{mesh_index}", mesh_data)
                                 bpy.context.collection.objects.link(mesh_obj)
-
-                                                       
+                            
                                 mesh_data.from_pydata(mesh_verts, [], mesh_faces)
                                 mesh_data.update()
 
@@ -2334,7 +2328,7 @@ class ImportMDLOperator(bpy.types.Operator, ImportHelper):
         return {'FINISHED'}
 #######################################################
 def menu_func_import(self, context):
-    self.layout.operator(ImportMDLOperator.bl_idname, text="R* Leeds: Stories Model(.mdl)")
+    self.layout.operator(ImportMDLOperator.bl_idname, text="R* Leeds: Stories Model (.mdl)")
 
 def register():
     bpy.utils.register_class(ImportMDLOperator)
