@@ -56,7 +56,7 @@ from mathutils import Matrix, Vector
 
 
 #######################################################
-# These are interesting... it seems AK73 was working on Stories animation rigging
+# These are interesting... it seems AK73 was working on Stories animation rigging, indirectly at the least.
 # === LCS Bone Arrays ===
 commonBoneOrder = (
     "Root", "Pelvis", "Spine", "Spine1", "Neck", "Head",
